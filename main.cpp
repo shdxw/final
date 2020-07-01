@@ -107,17 +107,17 @@ private:
 	string name;
 };
 
-class Table { //показываем карту на столе
+class CardListener {
 public:
-	vector<unsigned int> show(Carta * carta) {
+	static vector<unsigned int> show(Carta * carta) {
 		vector<unsigned int> data;
 		data.push_back(carta->getRang());
 		data.push_back(carta->getMast());
 		data.push_back(carta->getWeight());
 		return data;
-}
+	}
 
-	void printCard(vector<unsigned int> carta)
+	static void printCard(vector<unsigned int> carta)
 	{
 		switch (carta[0])
 		{
@@ -185,7 +185,7 @@ class PlayerList {
 
 private:
 	int kol;
-	vector <Human *> players;
+	vector <Player *> players;
 public:
 	PlayerList() {
 		while (true)
@@ -204,10 +204,6 @@ public:
 
 		}
 
-
-		Dealer *dealer = new Dealer; //добавляем диллера в список игроков!
-		players.push_back(dealer);
-
 		for (int i = 0; i < kol; i++)
 		{
 			string name;
@@ -218,9 +214,8 @@ public:
 			cout << endl;
 			players.push_back(gamer);
 		}
-		//cout << players.size() << endl;
 	}
-	vector <Human *> getPlayers() {
+	vector <Player *> getPlayers() {
 		return players;
 	}
 	int getKol() {
@@ -237,8 +232,8 @@ public:
 		koloda.pop_back();
 	}
 
-	void setkoloda(vector <Carta *> koloda) { //задать колоду для раздатчика
-		this->koloda = koloda;
+	CartaGiver(KolodaCart* koloda) { //задать колоду для раздатчика
+		this->koloda = koloda->giveKoloda();
 	}
 
 	int getKolodaSize() {
@@ -248,7 +243,6 @@ public:
 
 class ScoreBoard {
 	int d_score = 0, g_score = 0, b_score = 0;
-	string best;
 public:
 	void set_d(int score) {
 		d_score += score;
@@ -281,10 +275,6 @@ public:
 		g_score = 0;
 	}
 
-	/*void set_best(string best) {
-		this->best = best;
-	}*/
-
 	void final_score() { //проверка таблицы
 		if (d_score < b_score)
 		{
@@ -309,35 +299,35 @@ public:
 
 class Painter {
 public:
-	void setR() {
+	static void setR() {
 		HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
 		SetConsoleTextAttribute(console, FOREGROUND_RED);
 	}
 
-	void setG() {
+	static void setG() {
 		HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
 		SetConsoleTextAttribute(console, FOREGROUND_GREEN);
 	}
 
-	void setB() {
+	static void setB() {
 		HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
 		SetConsoleTextAttribute(console, FOREGROUND_BLUE);
 	}
 
-	void setY() {
+	static void setY() {
 		HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
 		SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
 	}
 
-};
+};  //статическая раскраска
 
 
 class Game{
 public:
 	int play() {
-		Painter painter;
+		//Painter painter;
 
-		painter.setY();
+		Painter::setY();
 		cout << "Добро пожаловать в игру Blackjack\n\n"; //эта работает
 		cout << "1. Для начала игры напишите 'start'\n";
 		cout << "2. Для выхода из игры напишите 'exit'\n";
@@ -352,24 +342,23 @@ public:
 			return 0;
 		}
 
+		Dealer *dealer = new Dealer; //добавляем диллера в список игроков!
 		KolodaCart *koloda;
 		koloda = koloda->getInstance();
-		CartaGiver giver;
-		giver.setkoloda(koloda->giveKoloda());
+		CartaGiver giver(koloda);
 		PlayerList playerlist;
-		Table table;
 		ScoreBoard score;
-		vector<Human *> players = playerlist.getPlayers(); //вектор плееров
+		vector<Player *> players = playerlist.getPlayers(); //вектор плееров
 
-		// Временные переменные для подсчёта результата
-			painter.setR();
+			//ход диллера
+			Painter::setR();
 			char vibor;
 			cout << "Диллер берёт карту.....\n" << endl;
-			Human * dealer = players[0];
-			giver.giveCarta(players[0]);
+
+			giver.giveCarta(dealer);
 			Carta* carta = dealer->showlastCard();
-			vector<unsigned int> tempCarta = table.show(carta);
-			table.printCard(tempCarta);
+			vector<unsigned int> tempCarta = CardListener::show(carta);
+			CardListener::printCard(tempCarta);
 
 			 score.set_d( tempCarta[2]);
 			 cout << endl << "Очки дилера: " << score.get_d() << endl;
@@ -377,8 +366,8 @@ public:
 		    cout << "\n\n\n";
 
 			// Ход игроков
-			painter.setG();
-			for (int x = 1; x < playerlist.getKol() + 1; x++)
+			Painter::setG();
+			for (int x = 0; x < playerlist.getKol(); x++)
 			{
 
 				cout << "Ход игрока " << players[x]->getName() << "\n" << "Игрок берёт карту....." << endl;
@@ -388,8 +377,8 @@ public:
 					Human * player = players[x];
 					giver.giveCarta(players[x]);
 					Carta* carta = player->showlastCard();
-					vector<unsigned int> tempCarta = table.show(carta);
-					table.printCard(tempCarta);
+					vector<unsigned int> tempCarta = CardListener::show(carta);
+					CardListener::printCard(tempCarta);
 					score.set_g(tempCarta[2]);
 					cout << endl << "Очки игрока "<< player->getName() << ": "<<score.get_g() << endl;
 					cout << "\n Взять ещё карту(y-да, n-нет) ";
@@ -405,25 +394,22 @@ public:
 				cout << "\n\n\n";
 			}
 			// Второй ход дилера
-			painter.setR();
+			Painter::setR();
 			cout << "Дилер берёт вторую карту....." << endl;
 
-			giver.giveCarta(players[0]);
+			giver.giveCarta(dealer);
 			carta = dealer->showlastCard();
-			tempCarta = table.show(carta);
-			table.printCard(tempCarta);
+			tempCarta = CardListener::show(carta);
+			CardListener::printCard(tempCarta);
 
 			score.set_d(tempCarta[2]);
 			cout << endl << "Очки дилера: " << score.get_d() << endl;
-
 			cout << "\n\n\n";
 
-		//проверка результатов
-			painter.setB();
+			//проверка результатов
+			Painter::setY();
 			score.final_score();
-
 			cout << "\n\n\n";
-
 			system("pause");
 			return 0;
 	}
